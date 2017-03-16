@@ -31,7 +31,7 @@ def parse_alignment ( CDS_alignment ):
     return fasta_dict
 
 ## PARSE SPECIES PREFIX TO DBS
-# We will read in a simple TSV with SPECIESPREFIX\tDATABASENAME
+# We will read in a simple TSV with SPECIESPREFIX\tDATABASENAME and parse it into a dict
 def parse_species_DB ( species_to_DB ):
     DB_dict = {}
     for line in species_to_DB:
