@@ -27,7 +27,6 @@ def parse_alignment ( CDS_alignment ):
             else:
                 sequence_list.append(line.rstrip("\n"))
     fasta_dict[header] = "".join(sequence_list)
-    print fasta_dict
     return fasta_dict
 
 ## PARSE SPECIES PREFIX TO DBS
@@ -38,7 +37,6 @@ def parse_species_DB ( species_to_DB ):
         prefix = line.strip("\n").split("\t")[0]
         DB = line.rstrip("\n").split("\t")[1]
         DB_dict[prefix] = DB
-    print DB_dict
     return DB_dict
 
 ## INSERT INTRONS INTO ALIGNMENT
