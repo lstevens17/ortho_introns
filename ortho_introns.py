@@ -5,6 +5,10 @@ from __future__ import division
 from os.path import basename, isfile, abspath, join
 import sys
 
+#########################
+###### FUNCTIONS ########
+#########################
+
 ## PARSE CDS ALIGNMENT
 # We expect alignment in FASTA format
 def parse_alignment ( CDS_alignment ):
@@ -26,10 +30,22 @@ def parse_alignment ( CDS_alignment ):
     print fasta_dict
     return fasta_dict
 
+## PARSE SPECIES PREFIX TO DBS
+# We will read in a simple TSV with SPECIESPREFIX\tDATABASENAME
+def parse_species_DB ( species_to_DB ):
+    DB_dict = {}
+    for line in prefix_to_DB:
+        prefix = line.strip("\n").split("\t")[0]
+        DB = line.rstrip("\n").split("\t")[1]
+        DB_dict[prefix] = DB
+
+
 # Run the code
 def run_software():
    with open(CDS_alignment_file, 'r') as CDS_alignment:
-       parse_alignment(CDS_alignment)
+       with open(species_to_DB_file, 'r') as species_to_DB:
+           parse_alignment(CDS_alignment)
+           parse_species_DB(species_to_DB)
 
 if __name__ == "__main__":
 
@@ -38,7 +54,7 @@ if __name__ == "__main__":
    infile, value, outfile = '', 0,''
    try:
        CDS_alignment_file = sys.argv[1]
-       DB_to_prefix = sys.argv[2]
+       species_to_DB_file = sys.argv[2]
    except:
        sys.exit("USAGE: ./%s %s %s" % (SCRIPT, "cds_alignment", "prefix_to_DB_file"))
 
