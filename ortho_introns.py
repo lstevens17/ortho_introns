@@ -69,10 +69,6 @@ def insert_introns(fasta_dict, DB_dict):
             else:
                 intron_containing_sequence += base #this will be a -. but we want this in final dict
         intron_alignment_dict[key] = intron_containing_sequence
-    ### JUST A PRINT LOOP, DELETE
-    for key in intron_alignment_dict:
-        print ">" + key
-        print intron_alignment_dict[key]
     return intron_alignment_dict
 
 def print_intron_positions(intron_alignment_dict):
