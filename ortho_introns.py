@@ -28,7 +28,8 @@ def parse_alignment ( CDS_alignment ):
 
 # Run the code
 def run_software():
-   parse_alignment(CDS_alignment)
+   with open(CDS_alignment_file, 'r') as CDS_alignment:
+       parse_alignment(CDS_alignment)
 
 if __name__ == "__main__":
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
 
    infile, value, outfile = '', 0,''
    try:
-       cds_alignment = sys.argv[1]
+       CDS_alignment_file = sys.argv[1]
        DB_to_prefix = sys.argv[2]
    except:
        sys.exit("USAGE: ./%s %s %s" % (SCRIPT, "cds_alignment", "prefix_to_DB_file"))
