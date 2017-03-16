@@ -34,10 +34,12 @@ def parse_alignment ( CDS_alignment ):
 # We will read in a simple TSV with SPECIESPREFIX\tDATABASENAME
 def parse_species_DB ( species_to_DB ):
     DB_dict = {}
-    for line in prefix_to_DB:
+    for line in species_to_DB:
         prefix = line.strip("\n").split("\t")[0]
         DB = line.rstrip("\n").split("\t")[1]
         DB_dict[prefix] = DB
+        print DB_dict
+        return DB_dict
 
 
 # Run the code
