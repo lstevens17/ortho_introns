@@ -337,10 +337,44 @@ def check_intron_alignments(single_copy_dict, intron_alignment_dict):
 		if not total_length % taxa_count == 0:
 			sys.exit("[ERROR] Alignments are not all the same length")
 
+def convert_original_introns_to_binary(single_copy_dict, intron_alignment_dict):
+        original_binary_intron_dict = {}
+        for orthogroup in single_copy_dict:
+                orthoseq_list = single_copy_dict[orthogroup]
+                all_intron_sites = []
+                for orthoseq in orthoseq_list:
+                        aligned_sequence = intron_alignment_dict[orthoseq]
+                        alignment_position = 0
+                        for position in aligned_sequence:
+                                if position == "~":
+                                        all_intron_sites.append(alignment_position)
+                                else:
+                                        alignment_position += 1
+                for orthoseq in orthoseq_list:
+                        aligned_sequence = intron_alignment_dict[orthoseq]
+                        alignment_position = 0
+                        present_introns = []
+                        for position in aligned_sequence:
+                                if position == "~":
+                                        present_introns.append(alignment_position)
+                                else:
+                                        alignment_position += 1
+                        binary = ''
+                        for site in sorted(set(all_intron_sites)):
+                                if site in present_introns:
+                                        binary += "1"
+                                else:
+                                        binary += "0"
+                        original_binary_intron_dict[orthoseq] = binary
+        return original_binary_intron_dict
+
+
 def trim_intron_alignments(single_copy_dict, intron_alignment_dict, alignment_coverage_dict, alignment_length_dict, trim_threshold):
 	print "\t Trimming start and end of alignment where there are < " + str(trim_threshold) + " aligned species..."
 	trimmed_intron_alignment_dict = {} # output dict
 	bad_orthogroup_list = []
+	count_of_trimmed_introns = 0
+	trimmed_intron_site_dict = {}
 	for orthogroup in single_copy_dict:
 		orthoseq_list = single_copy_dict[orthogroup]
 		alignment_length = alignment_length_dict[orthogroup] # this is alignment length without introns!!!!
@@ -374,17 +408,21 @@ def trim_intron_alignments(single_copy_dict, intron_alignment_dict, alignment_co
 	                bad_orthogroup_list.append(orthogroup)
 		# start trimming
 		else:
+			trimmed_intron_list = []
 			for orthoseq in orthoseq_list: # for every sequence in orthogroup
 				aligned_sequence = intron_alignment_dict[orthoseq] # get its sequence
 				if not trim_start == 0: # assuming there are bases to be trimmed
 					bases_to_remove = trim_start + 1 # calculate number of bases to be trimmed
 					bases_trimmed = 0 # initiate trimmed base count
+					position = 0
 					while bases_trimmed < bases_to_remove: # until you've trimmed all necessary sequence
 						if aligned_sequence[0] == "~": # if the first base in alignment is not an intron
 							aligned_sequence = aligned_sequence[1:] # get rid of it
+							trimmed_intron_list.append(position)
 						else: # otherwise
 							aligned_sequence = aligned_sequence[1:] # get rid of the intron, but don't consider it as a removed base
 							bases_trimmed += 1
+							position += 1
 					start_trimmed_sequence = aligned_sequence # output trimmed sequence
 				else: # otherwise
 					start_trimmed_sequence = aligned_sequence # output aligned sequence as if it had been trimmed
@@ -401,10 +439,15 @@ def trim_intron_alignments(single_copy_dict, intron_alignment_dict, alignment_co
 				else:
 					end_trimmed_sequence = start_trimmed_sequence
 				trimmed_intron_alignment_dict[orthoseq] = end_trimmed_sequence
+			if len(trimmed_intron_list) - len(sorted(set(trimmed_intron_list))) > 0:
+				count_of_trimmed_introns += 1
+			trimmed_intron_site_count = len(sorted(set(trimmed_intron_list)))
+			trimmed_intron_site_dict[orthogroup] = trimmed_intron_site_count
 	for orthogroup in bad_orthogroup_list:
 		del single_copy_dict[orthogroup]
+	print "\t Trimmed orthologous introns from " + str(count_of_trimmed_introns) + " orthogroups."
 	print "\t Excluded " + str(len(bad_orthogroup_list)) + " orthogroups which had no aligned sequence which exceed threshold."
-	return trimmed_intron_alignment_dict
+	return trimmed_intron_alignment_dict, trimmed_intron_site_dict
 
 def calculate_trimmed_alignment_length(single_copy_dict, trimmed_intron_alignment_dict):
 	trimmed_intron_alignment_length_dict = {}
@@ -479,12 +522,13 @@ def parse_tree(tree_file):
 				node_number += 1
                 return tree
 
-def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict):
+def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict, trimmed_intron_site_dict, original_binary_intron_dict):
 	print "\t Defining gain and loss events on phylogeny..."
 	#fix this
 	outfile = open("relative_intron_positions.txt", 'w')
 	outfile2 = open("conserved_intron_positions.txt", 'w')
 	outfile3 = open("unique_gain_positions.txt", 'w')
+	outfile4 = open("lost_intron_ids.txt", "w")
 	for orthogroup in single_copy_dict:
 		orthoseq_list = single_copy_dict[orthogroup]
 		total_length = 0
@@ -570,9 +614,25 @@ def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, tr
                                                         intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
                                                         alignment_length = alignment_length_dict[orthogroup]
                                                         outfile.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+							loss_event_species_list = []
                                                 	for leaf in node.get_leaf_names():
+								loss_event_species_list.append(leaf)
                                                         	species_without_intron.remove(leaf)
 							loss_count += 1
+							offset = trimmed_intron_site_dict[orthogroup]
+							actual_intron_site = intron_site + offset
+							species_with_lost_intron = []
+							for orthoseq in orthoseq_list:
+								original_binary = original_binary_intron_dict[orthoseq]
+								intron_number = 1
+								binary_site = 0
+								for site in original_binary:
+									if site == "1":
+										if binary_site == actual_intron_site:
+											species_with_lost_intron.append(orthoseq + ".i" + str(intron_number))
+										intron_number += 1
+									binary_site += 1
+							outfile4.write(orthogroup + "\t" + str(intron_site) + "\t" + str(intron_position/alignment_length) + "\t" + ",".join(loss_event_species_list) + "\t" + ",".join(species_with_lost_intron) + "\n")
 					if loss_count == 0:
 						intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
                                                 alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
@@ -618,12 +678,18 @@ alignment_coverage_dict = tuple[0]
 alignment_length_dict = tuple[1]
 intron_alignment_dict = insert_introns(single_copy_dict, cds_alignment_dict, intron_position_dict)
 check_intron_alignments(single_copy_dict, intron_alignment_dict)
-trimmed_intron_alignment_dict = trim_intron_alignments(single_copy_dict, intron_alignment_dict, alignment_coverage_dict, alignment_length_dict, trim_threshold)
+
+original_binary_intron_dict = convert_original_introns_to_binary(single_copy_dict, intron_alignment_dict)
+
+trimming_output = trim_intron_alignments(single_copy_dict, intron_alignment_dict, alignment_coverage_dict, alignment_length_dict, trim_threshold)
+trimmed_intron_alignment_dict = trimming_output[0]
+trimmed_intron_site_dict = trimming_output[1]
+
 trimmed_intron_alignment_length_dict = calculate_trimmed_alignment_length(single_copy_dict, trimmed_intron_alignment_dict)
 binary_output = convert_introns_to_binary(single_copy_dict, trimmed_intron_alignment_dict)
 binary_intron_dict = binary_output[0]
 orthogroup_intron_positions = binary_output[1]
 print "[STEP 3] DEFINE GAIN AND LOSS EVENTS ON TREE"
 tree = parse_tree(tree_file)
-define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict)
+define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict, trimmed_intron_site_dict, original_binary_intron_dict)
 print "[STATUS] OrthoIntron.py complete."
