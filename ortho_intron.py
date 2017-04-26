@@ -524,128 +524,132 @@ def parse_tree(tree_file):
                 return tree
 
 def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict, trimmed_intron_site_dict, original_binary_intron_dict):
+	out_dir = "ortho_intron_output"
+    if not os.path.exists(out_dir):
+    	os.makedirs(out_dir)
 	print "\t Defining gain and loss events on phylogeny..."
 	#fix this
 	outfile = open("relative_intron_positions.txt", 'w')
 	outfile2 = open("conserved_intron_positions.txt", 'w')
 	outfile3 = open("unique_gain_positions.txt", 'w')
 	outfile4 = open("lost_intron_ids.txt", "w")
-	for orthogroup in single_copy_dict:
-		orthoseq_list = single_copy_dict[orthogroup]
-		total_length = 0
-		for orthoseq in orthoseq_list:
-			binary_length = len(binary_intron_dict[orthoseq])
-			total_length += binary_length
-		if not binary_length == 0:
-			if total_length % binary_length == 0:
-				intron_site_count = binary_length
-			else:
-				sys.exit("[ERROR] Binary sequences are not all equal in length.")
-			intron_site_count = intron_site_count - 1
-			intron_site = 0
-			while intron_site <= intron_site_count:
-				species_with_intron = []
-				species_without_intron = []
-				for orthoseq in orthoseq_list:
-					species_prefix = orthoseq.split(".")[0]
-					if int(binary_intron_dict[orthoseq][intron_site]) == 1:
-						species_with_intron.append(species_prefix)
-					elif int(binary_intron_dict[orthoseq][intron_site]) == 0: # and those with an intron absent
-                                		species_without_intron.append(species_prefix)
-					else:
-						sys.exit("[ERROR] Something other than a 1 and a 0 in the binary - WHATTTT?")
-				birth_node = tree.get_common_ancestor(species_with_intron)
-				if birth_node.is_root() and len(species_with_intron) > 1:
-					loss_count = 0
-					try:
-						existing_gain_count = birth_node.gain
-						updated_gain_count = existing_gain_count + 1
-						birth_node.add_features(gain=updated_gain_count)
-					except AttributeError:
-						birth_node.add_features(gain=1)
-					for node in birth_node.iter_descendants("preorder"):
-						if set(node.get_leaf_names()).issubset(set(species_without_intron)):
-							try:
-								existing_loss_count = node.loss
-								updated_loss_count = existing_loss_count + 1
-								node.add_features(loss=updated_loss_count)
-							except AttributeError:
-								node.add_features(loss=1)
-							### HERE orthogroup_intron_positions, alignment_length_dict
+	with open(out_dir + "/" + "lost_event_details.txt") as lost_event_details:
+		for orthogroup in single_copy_dict:
+			orthoseq_list = single_copy_dict[orthogroup]
+			total_length = 0
+			for orthoseq in orthoseq_list:
+				binary_length = len(binary_intron_dict[orthoseq])
+				total_length += binary_length
+			if not binary_length == 0:
+				if total_length % binary_length == 0:
+					intron_site_count = binary_length
+				else:
+					sys.exit("[ERROR] Binary sequences are not all equal in length.")
+				intron_site_count = intron_site_count - 1
+				intron_site = 0
+				while intron_site <= intron_site_count:
+					species_with_intron = []
+					species_without_intron = []
+					for orthoseq in orthoseq_list:
+						species_prefix = orthoseq.split(".")[0]
+						if int(binary_intron_dict[orthoseq][intron_site]) == 1:
+							species_with_intron.append(species_prefix)
+						elif int(binary_intron_dict[orthoseq][intron_site]) == 0: # and those with an intron absent
+	                                		species_without_intron.append(species_prefix)
+						else:
+							sys.exit("[ERROR] Something other than a 1 and a 0 in the binary - WHATTTT?")
+					birth_node = tree.get_common_ancestor(species_with_intron)
+					if birth_node.is_root() and len(species_with_intron) > 1:
+						loss_count = 0
+						try:
+							existing_gain_count = birth_node.gain
+							updated_gain_count = existing_gain_count + 1
+							birth_node.add_features(gain=updated_gain_count)
+						except AttributeError:
+							birth_node.add_features(gain=1)
+						for node in birth_node.iter_descendants("preorder"):
+							if set(node.get_leaf_names()).issubset(set(species_without_intron)):
+								try:
+									existing_loss_count = node.loss
+									updated_loss_count = existing_loss_count + 1
+									node.add_features(loss=updated_loss_count)
+								except AttributeError:
+									node.add_features(loss=1)
+								### HERE orthogroup_intron_positions, alignment_length_dict
+								intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
+								alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
+								outfile.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+								# HERE
+								loss_count += 1
+								for leaf in node.get_leaf_names():
+									species_without_intron.remove(leaf)
+						if loss_count == 0:
 							intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
 							alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
-							outfile.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
-							# HERE
-							loss_count += 1
-							for leaf in node.get_leaf_names():
-								species_without_intron.remove(leaf)
-					if loss_count == 0:
+							outfile2.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+					elif birth_node.is_root() and len(species_with_intron) == 1:
+						for node in tree.traverse("preorder"):
+							descendants = node.get_leaf_names()
+							if len(descendants) == 1 and descendants[0] == species_with_intron[0]:
+								try:
+									existing_gain_count = node.gain
+	                                        			updated_gain_count = existing_gain_count + 1
+	                                        			node.add_features(gain=updated_gain_count)
+	                                			except AttributeError:
+	                                        			node.add_features(gain=1)
 						intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
 						alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
-						outfile2.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
-				elif birth_node.is_root() and len(species_with_intron) == 1:
-					for node in tree.traverse("preorder"):
-						descendants = node.get_leaf_names()
-						if len(descendants) == 1 and descendants[0] == species_with_intron[0]:
-							try:
-								existing_gain_count = node.gain
-                                        			updated_gain_count = existing_gain_count + 1
-                                        			node.add_features(gain=updated_gain_count)
-                                			except AttributeError:
-                                        			node.add_features(gain=1)
-					intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
-					alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
-					outfile3.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
-				elif not birth_node.is_root() and len(species_with_intron) > 1:
-					loss_count = 0
-					try:
-						existing_gain_count = birth_node.gain
-						updated_gain_count = existing_gain_count + 1
-						birth_node.add_features(gain=updated_gain_count)
-					except AttributeError:
-						birth_node.add_features(gain=1)
-					for node in birth_node.iter_descendants("preorder"):
-						if set(node.get_leaf_names()).issubset(set(species_without_intron)):
-							try:
-                                                        	existing_loss_count = node.loss
-                                                        	updated_loss_count = existing_loss_count + 1
-                                                        	node.add_features(loss=updated_loss_count)
-                                                	except AttributeError:
-                                                        	node.add_features(loss=1)
-                                                        intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
-                                                        alignment_length = alignment_length_dict[orthogroup]
-                                                        outfile.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
-							loss_event_species_list = []
-                                                	for leaf in node.get_leaf_names():
-								loss_event_species_list.append(leaf)
-                                                        	species_without_intron.remove(leaf)
-							loss_count += 1
-							offset = trimmed_intron_site_dict[orthogroup]
-							actual_intron_site = intron_site + offset
-							species_with_lost_intron = []
-							for orthoseq in orthoseq_list:
-								original_binary = original_binary_intron_dict[orthoseq]
-								intron_number = 1
-								binary_site = 0
-								for site in original_binary:
-									if site == "1":
-										if binary_site == actual_intron_site:
-											species_with_lost_intron.append(orthoseq + ".i" + str(intron_number))
-										intron_number += 1
-									binary_site += 1
-							outfile4.write(orthogroup + "\t" + str(intron_site) + "\t" + str(intron_position/alignment_length) + "\t" + ",".join(loss_event_species_list) + "\t" + ",".join(species_with_lost_intron) + "\n")
-					if loss_count == 0:
-						intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
-                                                alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
-                                                outfile2.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
-				else:
-					print "YOU BROKE ME!"
-				intron_site += 1
-		else:
-			print orthogroup
-	outfile.close()
-	outfile2.close()
-	print tree.get_ascii(attributes=["name", "gain", "loss"], show_internal=True)
+						outfile3.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+					elif not birth_node.is_root() and len(species_with_intron) > 1:
+						loss_count = 0
+						try:
+							existing_gain_count = birth_node.gain
+							updated_gain_count = existing_gain_count + 1
+							birth_node.add_features(gain=updated_gain_count)
+						except AttributeError:
+							birth_node.add_features(gain=1)
+						for node in birth_node.iter_descendants("preorder"):
+							if set(node.get_leaf_names()).issubset(set(species_without_intron)):
+								try:
+	                                                        	existing_loss_count = node.loss
+	                                                        	updated_loss_count = existing_loss_count + 1
+	                                                        	node.add_features(loss=updated_loss_count)
+	                                                	except AttributeError:
+	                                                        	node.add_features(loss=1)
+	                                                        intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
+	                                                        alignment_length = alignment_length_dict[orthogroup]
+	                                                        outfile.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+								loss_event_species_list = []
+	                                                	for leaf in node.get_leaf_names():
+									loss_event_species_list.append(leaf)
+	                                                        	species_without_intron.remove(leaf)
+								loss_count += 1
+								offset = trimmed_intron_site_dict[orthogroup]
+								actual_intron_site = intron_site + offset
+								species_with_lost_intron = []
+								for orthoseq in orthoseq_list:
+									original_binary = original_binary_intron_dict[orthoseq]
+									intron_number = 1
+									binary_site = 0
+									for site in original_binary:
+										if site == "1":
+											if binary_site == actual_intron_site:
+												species_with_lost_intron.append(orthoseq + ".i" + str(intron_number))
+											intron_number += 1
+										binary_site += 1
+								loss_event_details.write(orthogroup + "\t" + str(intron_site) + "\t" + str(intron_position/alignment_length) + "\t" + ",".join(loss_event_species_list) + "\t" + ",".join(species_with_lost_intron) + "\n")
+						if loss_count == 0:
+							intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
+	                                                alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
+	                                                outfile2.write(orthogroup + "\t" + str(intron_position/alignment_length) + "\n")
+					else:
+						print "YOU BROKE ME!"
+					intron_site += 1
+			else:
+				print orthogroup
+		outfile.close()
+		outfile2.close()
+		print tree.get_ascii(attributes=["name", "gain", "loss"], show_internal=True)
 ##########
 ## MAIN ##
 ##########
