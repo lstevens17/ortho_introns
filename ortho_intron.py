@@ -583,6 +583,20 @@ def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, tr
 								loss_count += 1
 								for leaf in node.get_leaf_names():
 									species_without_intron.remove(leaf)
+								offset = trimmed_intron_site_dict[orthogroup]
+								actual_intron_site = intron_site + offset
+								species_with_lost_intron = []
+								for orthoseq in orthoseq_list:
+									original_binary = original_binary_intron_dict[orthoseq]
+									intron_number = 1
+									binary_site = 0
+									for site in original_binary:
+										if site == "1":
+											if binary_site == actual_intron_site:
+												species_with_lost_intron.append(orthoseq + ".i" + str(intron_number))
+											intron_number += 1
+										binary_site += 1
+								loss_event_details.write(orthogroup + "\t" + str(intron_site) + "\t" + str(intron_position/alignment_length) + "\t" + ",".join(loss_event_species_list) + "\t" + ",".join(species_with_lost_intron) + "\n")
 						if loss_count == 0:
 							intron_position = int(orthogroup_intron_positions[orthogroup].split(",")[intron_site])
 							alignment_length = trimmed_intron_alignment_length_dict[orthogroup]
