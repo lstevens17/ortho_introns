@@ -525,8 +525,8 @@ def parse_tree(tree_file):
 
 def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, trimmed_intron_alignment_length_dict, single_copy_dict, trimmed_intron_site_dict, original_binary_intron_dict):
 	out_dir = "ortho_intron_output"
-    if not os.path.exists(out_dir):
-    	os.makedirs(out_dir)
+    	if not os.path.exists(out_dir):
+    		os.makedirs(out_dir)
 	print "\t Defining gain and loss events on phylogeny..."
 	#fix this
 	outfile = open("relative_intron_positions.txt", 'w')
