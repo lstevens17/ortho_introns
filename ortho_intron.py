@@ -533,7 +533,7 @@ def define_gain_losses(binary_intron_dict, tree, orthogroup_intron_positions, tr
 	outfile2 = open("conserved_intron_positions.txt", 'w')
 	outfile3 = open("unique_gain_positions.txt", 'w')
 	outfile4 = open("lost_intron_ids.txt", "w")
-	with open(out_dir + "/" + "lost_event_details.txt") as lost_event_details:
+	with open(out_dir + "/" + "lost_event_details.txt", 'w') as lost_event_details:
 		for orthogroup in single_copy_dict:
 			orthoseq_list = single_copy_dict[orthogroup]
 			total_length = 0
