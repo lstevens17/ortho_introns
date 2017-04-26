@@ -16,7 +16,6 @@ Usage: ortho_intron.py --ortho <ortho_file> --cds <cds_dir> --proteins <protein_
 		--config	specify config file
 		--trim		specify trim threshold (int)
 """
-# git test
 #############
 ## MODULES ##
 #############
